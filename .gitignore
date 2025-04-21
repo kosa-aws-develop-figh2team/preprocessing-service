@@ -1,0 +1,64 @@
+# ------------------------
+# OS: macOS
+# ------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+__MACOSX/
+
+# ------------------------
+# Python
+# ------------------------
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+.env.*
+.envrc
+.venv/
+venv/
+pip-log.txt
+pytest_cache/
+.cache/
+ipynb_checkpoints/
+
+# ------------------------
+# VSCode, PyCharm, JetBrains IDE
+# ------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# ------------------------
+# Docker
+# ------------------------
+*.log
+docker-compose.override.yml
+docker.env
+
+# ------------------------
+# AWS credentials (중요)
+# ------------------------
+.aws/          # 일반적으로 홈 디렉토리에 위치하므로 실수 방지용
+*.pem          # EC2 키 페어 등
+*.tfstate
+*.tfstate.*
+
+# ------------------------
+# GitHub Actions / CI
+# ------------------------
+# 캐시 폴더 (선택)
+.github/workflows/*.log
+.github/workflows/__pycache__/
+
+# ------------------------
+# 테스트 결과 및 임시 파일
+# ------------------------
+coverage/
+htmlcov/
+dist/
+build/
+*.egg-info/
