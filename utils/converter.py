@@ -87,7 +87,7 @@ def get_extension(file_path: str) -> str:
     return Path(file_path).suffix.lower()
 
 def handle_txt(txt_text: str):
-    txt_text = txt_text.replace('\n', ' ').strip()
+    txt_text = txt_text.replace('\n', ' ')
     return txt_text
 
 def convert_to_text(file_path: str) -> str:
