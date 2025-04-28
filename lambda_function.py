@@ -2,6 +2,7 @@ import json
 import logging
 import boto3
 import os
+import requests
 from utils.dynamodb_logger import update_metadata
 from utils.converter import convert_to_text, handle_txt
 from utils.chunker import split_into_chunks
@@ -11,8 +12,6 @@ from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
     logger.info(f"🚀 DynamoDB Stream 이벤트 수신: {json.dumps(event)}")
@@ -37,19 +36,21 @@ def lambda_handler(event, context):
                 logger.error("❌ service_id 또는 file_path가 누락되었습니다.")
                 continue
 
-            # step이 standby가 아니면 무시
             if step != "standby":
                 logger.info(f"⚡ step이 standby가 아님 (현재: {step}), 처리 건너뜀")
                 continue
 
             logger.info(f"🚀 처리 시작: service_id={service_id}, file_path={file_path}")
 
-            # 1. 파일 다운로드
-            bucket, key = parse_s3_path(file_path)
-            local_tmp_path = f"./tmp/{os.path.basename(key)}"
-
-            s3_client.download_file(bucket, key, local_tmp_path)
-            logger.info(f"✅ 파일 다운로드 완료: {local_tmp_path}")
+            # 1. 파일 다운로드 (URL 방식)
+            local_tmp_path = f"/tmp/{os.path.basename(file_path)}"
+            try:
+                download_file_from_url(file_path, local_tmp_path)
+                logger.info(f"✅ 파일 다운로드 완료: {local_tmp_path}")
+            except Exception as e:
+                logger.exception(f"❌ 파일 다운로드 실패: {str(e)}")
+                update_metadata(service_id=service_id, step="download", status="failed", error=str(e))
+                continue
 
             # 2. 파일 텍스트 변환
             try:
@@ -60,7 +61,7 @@ def lambda_handler(event, context):
             except Exception as e:
                 logger.exception(f"❌ 파일 변환 실패: {str(e)}")
                 update_metadata(service_id=service_id, step="convert", status="failed", error=str(e))
-                continue  # 다음 record로 넘어감
+                continue
 
             # 3. 텍스트 청킹
             try:
@@ -90,11 +91,12 @@ def lambda_handler(event, context):
         "body": json.dumps("DynamoDB Stream 이벤트 처리 완료")
     }
 
-def parse_s3_path(s3_path: str):
+def download_file_from_url(url: str, local_path: str):
     """
-    s3://bucket/key 형식의 경로를 bucket, key로 분리
+    HTTP/HTTPS URL로부터 파일 다운로드하여 로컬에 저장
     """
-    if s3_path.startswith("s3://"):
-        s3_path = s3_path[5:]
-    bucket, key = s3_path.split("/", 1)
-    return bucket, key
+    response = requests.get(url)
+    response.raise_for_status()  # HTTP 오류 발생 시 예외 던짐
+
+    with open(local_path, 'wb') as f:
+        f.write(response.content)
