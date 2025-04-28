@@ -28,7 +28,7 @@
 [DynamoDB 상태 기록 (성공/실패)]
 ```
 
-## 🧩 API 명세
+## 🧩 기능 명세
 ### 📑 1. 문서 텍스트 변환 API
 
 - **Endpoint**: `POST /process/convert`
@@ -76,11 +76,19 @@
 
 ## 🚀 로컬 실행 방법
 ```bash
-# 1. 의존성 설치
+# 1. .venv 환경 생성 및 활성화
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. 의존성 설치
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# 2. 서버 실행
-uvicorn main:app --reload --port 5100
+# 3. pyhwp 별도 설치
+pip install pyhwp
+
+# 4. 서버 실행
+uvicorn main:app --port 5100
 ```
 
 ## 🐳 Docker로 빌드 & 실행

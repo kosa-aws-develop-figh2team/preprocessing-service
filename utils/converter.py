@@ -86,6 +86,10 @@ class PdfConverter:
 def get_extension(file_path: str) -> str:
     return Path(file_path).suffix.lower()
 
+def handle_txt(txt_text: str):
+    txt_text = txt_text.replace('\n', ' ').strip()
+    return txt_text
+
 def convert_to_text(file_path: str) -> str:
     ext = get_extension(file_path)
     logger.info(f"파일 경로: {file_path}, 확장자: {ext}")
