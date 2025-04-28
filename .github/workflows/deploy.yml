@@ -1,41 +1,57 @@
-name: 🚀 Deploy to ECR
+name: Deploy Lambda
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main   # main 브랜치에 push될 때만 실행 (원하면 변경 가능)
 
 jobs:
-  build-and-push:
-    name: Build & Push to Amazon ECR
+  deploy:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: ⏬ Checkout source code
-        uses: actions/checkout@v3
+    env:
+      AWS_REGION: ${{ env.AWS_REGION }}
+      FUNCTION_NAME: testFunction
 
-      - name: 🔐 Configure AWS credentials
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -t site-packages
+
+      - name: Create deployment package
+        run: |
+          mkdir lambda-package
+          cp lambda_function.py lambda-package/
+          cp -r utils lambda-package/
+          cp -r site-packages/* lambda-package/
+          
+          cd lambda-package
+          zip -r ../lambda-deploy.zip .
+          cd ..
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: 🔑 Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: 🛠️ Build, tag, and push Docker image to ECR
-        env:
-          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Deploy to AWS Lambda
         run: |
-          echo "🔨 Docker build 시작"
-          docker build --platform linux/amd64 -t $ECR_REPOSITORY:$IMAGE_TAG .
-          
-          echo "🏷️ 태그 추가"
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          echo "🚀 ECR로 push 시작"
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          aws lambda update-function-code \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --zip-file fileb://lambda-deploy.zip
+
+      - name: Cleanup
+        run: |
+          rm -rf lambda-package
+          rm -f lambda-deploy.zip
