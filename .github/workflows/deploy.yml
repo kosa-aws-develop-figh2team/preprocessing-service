@@ -1,43 +1,57 @@
-name: Build and Deploy Lambda Container
+name: 🚀 Build & Deploy Lambda Container to ECR
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      LAMBDA_FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - name: ⏬ Checkout source code
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
+      - name: 🔐 Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 🔑 Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and Push Docker image (latest + sha tags)
+      - name: 🛠️ Build, Tag, and Push Docker Image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # SHA를 태그로 사용
-          IMAGE_TAG_SHA=${{ github.sha }}
-          
-          # Docker build
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA .
+          echo "🔨 Buildx로 Docker build 시작"
+          docker buildx build \
+            --platform linux/arm64 \
+            --load \
+            -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-          # Docker push (latest + sha 둘 다 푸시)
+          echo "🏷️ 태그 추가"
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "🚀 ECR로 push 시작"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA
 
-      - name: Update AWS Lambda to use latest Image
+      - name: 📦 Update AWS Lambda function to latest image
         run: |
+          echo "🛠️ Lambda 함수 업데이트 시작"
           aws lambda update-function-code \
-            --function-name ${{ vars.LAMBDA_FUNCTION_NAME }} \
+            --function-name $LAMBDA_FUNCTION_NAME \
             --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:latest
