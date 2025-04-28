@@ -11,8 +11,8 @@ from utils.embed import save_chunk_vectordb
 
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def lambda_handler(event, context):
     logger.info(f"🚀 DynamoDB Stream 이벤트 수신: {json.dumps(event)}")
@@ -32,9 +32,10 @@ def lambda_handler(event, context):
             service_id = new_image.get('service_id', {}).get('S')
             file_path = new_image.get('file_path', {}).get('S')
             step = new_image.get('step', {}).get('S')
+            content = new_image.get('content', {}).get('S')
 
-            if not service_id or not file_path:
-                logger.error("❌ service_id 또는 file_path가 누락되었습니다.")
+            if not service_id or not file_path or not content:
+                logger.error("❌ service_id 또는 file_path, content가 누락되었습니다.")
                 continue
 
             if step != "init":
@@ -44,18 +45,19 @@ def lambda_handler(event, context):
             logger.info(f"🚀 처리 시작: service_id={service_id}, file_path={file_path}")
 
             # 1. 파일 다운로드
-            try:
-                local_tmp_path = download_file_from_url(file_path)
-                logger.info(f"✅ 파일 다운로드 완료: {local_tmp_path}")
-            except Exception as e:
-                logger.exception(f"❌ 파일 다운로드 실패: {str(e)}")
-                update_metadata(service_id=service_id, step="download", status="failed", error=str(e))
-                continue
+            # try:
+            #     local_tmp_path = download_file_from_url(file_path)
+            #     logger.info(f"✅ 파일 다운로드 완료: {local_tmp_path}")
+            # except Exception as e:
+            #     logger.exception(f"❌ 파일 다운로드 실패: {str(e)}")
+            #     update_metadata(service_id=service_id, step="download", status="failed", error=str(e))
+            #     continue
+            
 
             # 2. 파일 텍스트 변환
             try:
-                txt_text = convert_to_text(local_tmp_path)
-                clean_txt = handle_txt(txt_text)
+                # txt_text = convert_to_text(local_tmp_path)
+                clean_txt = handle_txt(content)
                 update_metadata(service_id=service_id, step="convert", status="success")
                 logger.info(f"✅ 파일 텍스트 변환 완료")
             except Exception as e:
@@ -132,5 +134,8 @@ def download_file_from_url(url: str, local_dir: str = "/tmp") -> str:
 
     with open(local_path, 'wb') as f:
         f.write(response.content)
+
+    file_size = os.path.getsize(local_path)
+    logger.info(f"다운로드한 파일 크기: {file_size} bytes")  
 
     return local_path
