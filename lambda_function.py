@@ -2,6 +2,7 @@ import json
 import logging
 import boto3
 import os
+import re
 import requests
 from utils.dynamodb_logger import update_metadata
 from utils.converter import convert_to_text, handle_txt
@@ -42,10 +43,9 @@ def lambda_handler(event, context):
 
             logger.info(f"🚀 처리 시작: service_id={service_id}, file_path={file_path}")
 
-            # 1. 파일 다운로드 (URL 방식)
-            local_tmp_path = f"/tmp/{os.path.basename(file_path)}"
+            # 1. 파일 다운로드
             try:
-                download_file_from_url(file_path, local_tmp_path)
+                local_tmp_path = download_file_from_url(file_path)
                 logger.info(f"✅ 파일 다운로드 완료: {local_tmp_path}")
             except Exception as e:
                 logger.exception(f"❌ 파일 다운로드 실패: {str(e)}")
@@ -91,12 +91,46 @@ def lambda_handler(event, context):
         "body": json.dumps("DynamoDB Stream 이벤트 처리 완료")
     }
 
-def download_file_from_url(url: str, local_path: str):
+def download_file_from_url(url: str, local_dir: str = "/tmp") -> str:
     """
-    HTTP/HTTPS URL로부터 파일 다운로드하여 로컬에 저장
+    HTTP/HTTPS URL로부터 파일 다운로드하여 로컬에 저장하고, 저장 경로 반환
+    - Content-Disposition 헤더에서 파일명 추출
+    - 없으면 Content-Type 보고 확장자 추정
+    - 그래도 없으면 URL basename 사용
     """
     response = requests.get(url)
-    response.raise_for_status()  # HTTP 오류 발생 시 예외 던짐
+    response.raise_for_status()
+
+    # 1. Content-Disposition에서 filename 찾기
+    content_disposition = response.headers.get('Content-Disposition')
+    filename = None
+    if content_disposition:
+        match = re.search(r'filename="(.+)"', content_disposition)
+        if match:
+            filename = match.group(1)
+
+    # 2. fallback: Content-Type 보고 확장자 추정
+    if not filename:
+        content_type = response.headers.get('Content-Type', '')
+        if 'pdf' in content_type:
+            ext = '.pdf'
+        elif 'hwp' in content_type:
+            ext = '.hwp'
+        elif 'msword' in content_type:
+            ext = '.doc'
+        else:
+            ext = ''  # 모를 때
+
+        # URL 기반 이름 추정
+        base_name = os.path.basename(url.split("?")[0])
+        filename = base_name + ext if not base_name.endswith(ext) else base_name
+
+    if not filename:
+        raise ValueError("❌ 파일 이름을 결정할 수 없습니다.")
+
+    local_path = os.path.join(local_dir, filename)
 
     with open(local_path, 'wb') as f:
         f.write(response.content)
+
+    return local_path
