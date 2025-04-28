@@ -30,19 +30,19 @@ def lambda_handler(event, context):
                 continue
 
             service_id = new_image.get('service_id', {}).get('S')
-            file_path = new_image.get('file_path', {}).get('S')
+            # file_path = new_image.get('file_path', {}).get('S')
             step = new_image.get('step', {}).get('S')
             content = new_image.get('content', {}).get('S')
 
-            if not service_id or not file_path or not content:
-                logger.error("❌ service_id 또는 file_path, content가 누락되었습니다.")
+            if not service_id or not content: #or not file_path
+                logger.error("❌ service_id 또는 content가 누락되었습니다.")
                 continue
 
             if step != "init":
                 logger.info(f"⚡ step이 init이 아님 (현재: {step}), 처리 건너뜀")
                 continue
 
-            logger.info(f"🚀 처리 시작: service_id={service_id}, file_path={file_path}")
+            logger.info(f"🚀 처리 시작: service_id={service_id}, content={content[:100]}")
 
             # 1. 파일 다운로드
             # try:
