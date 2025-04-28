@@ -22,8 +22,8 @@ jobs:
           docker run --rm -v ${{ github.workspace }}:/workspace amazonlinux:2 bash -c "
             set -e
 
-            # 필요한 패키지 설치
-            yum install -y gcc gcc-c++ make zip wget tar openssl-devel bzip2-devel libffi-devel xz-devel readline-devel zlib-devel &&
+            # 필요한 패키지 설치 (gzip 추가!)
+            yum install -y gcc gcc-c++ make zip wget tar gzip openssl-devel bzip2-devel libffi-devel xz-devel readline-devel zlib-devel &&
 
             # Python 3.11 소스 다운로드 및 빌드
             cd /usr/src &&
