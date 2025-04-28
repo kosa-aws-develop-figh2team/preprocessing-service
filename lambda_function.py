@@ -37,8 +37,8 @@ def lambda_handler(event, context):
                 logger.error("❌ service_id 또는 file_path가 누락되었습니다.")
                 continue
 
-            if step != "standby":
-                logger.info(f"⚡ step이 standby가 아님 (현재: {step}), 처리 건너뜀")
+            if step != "init":
+                logger.info(f"⚡ step이 init이 아님 (현재: {step}), 처리 건너뜀")
                 continue
 
             logger.info(f"🚀 처리 시작: service_id={service_id}, file_path={file_path}")
