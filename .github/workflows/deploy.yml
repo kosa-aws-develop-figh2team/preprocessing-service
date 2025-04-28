@@ -1,9 +1,9 @@
-name: Deploy Lambda
+name: Deploy Lambda (Amazon Linux 2 Docker)
 
 on:
   push:
     branches:
-      - main   # main 브랜치에 push될 때만 실행 (원하면 변경 가능)
+      - main  # 메인 브랜치 푸시될 때 실행
 
 jobs:
   deploy:
@@ -11,29 +11,42 @@ jobs:
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
-      FUNCTION_NAME: testFunction
+      FUNCTION_NAME: testFunction  # 실제 함수명으로 바꿔줘
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Create deployment package
+      - name: Build Lambda package in Amazon Linux 2 Docker
         run: |
-          zip -r lambda-deploy.zip site-packages utils lambda_function.py
+          docker run --rm -v ${{ github.workspace }}:/workspace amazonlinux:2 bash -c "
+            yum install -y python3 python3-pip gcc gcc-c++ python3-devel zip &&
+            cd /workspace &&
 
-      - name: Configure AWS credentials
+            # site-packages 재설치
+            rm -rf site-packages &&
+            pip3 install --upgrade pip &&
+            pip3 install -r requirements.txt -t site-packages &&
+
+            # 패키지 준비
+            mkdir -p lambda-package &&
+            cp lambda_function.py lambda-package/ &&
+            cp -r utils lambda-package/ &&
+            cp -r site-packages/* lambda-package/ &&
+
+            # 압축
+            cd lambda-package &&
+            zip -r ../lambda-deploy.zip .
+          "
+
+      - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to AWS Lambda
+      - name: Deploy Lambda function
         run: |
           aws lambda update-function-code \
             --function-name ${{ env.FUNCTION_NAME }} \
@@ -41,5 +54,4 @@ jobs:
 
       - name: Cleanup
         run: |
-          rm -rf lambda-package
-          rm -f lambda-deploy.zip
+          rm -rf site-packages lambda-package lambda-deploy.zip
