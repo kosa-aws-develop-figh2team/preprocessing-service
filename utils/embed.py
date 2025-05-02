@@ -7,8 +7,8 @@ dotenv.load_dotenv()
 
 # 환경변수 읽기
 EMBED_API_URL = os.getenv("EMBED_API_URL")
-EMBED_API_PORT = os.getenv("EMBED_API_PORT", "5001")  # 기본값 5001
-FULL_EMBED_API_URL = f"http://{EMBED_API_URL}:{EMBED_API_PORT}/embed/chunks"
+# EMBED_API_PORT = os.getenv("EMBED_API_PORT", "5001")  # 기본값 5001
+FULL_EMBED_API_URL = f"http://{EMBED_API_URL}/embed/chunks"
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
