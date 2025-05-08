@@ -76,14 +76,9 @@ def lambda_handler(event, context):
                 continue
 
             # 4. 청크 데이터 저장
-            try:
-                save_chunk_vectordb(chunk_list, service_id)
-                update_metadata(service_id=service_id, step="save", status="success")
-                logger.info(f"✅ 청크 데이터 저장 완료")
-            except Exception as e:
-                logger.exception(f"❌ 청크 데이터 저장 실패: {str(e)}")
-                update_metadata(service_id=service_id, step="save", status="failed", error=str(e))
-                continue
+            save_chunk_vectordb(chunk_list, service_id)
+            update_metadata(service_id=service_id, step="save", status="success")
+            logger.info(f"✅ 청크 데이터 저장 전송 완료")
 
         except Exception as e:
             logger.exception(f"❌ 전체 처리 중 알 수 없는 에러 발생: {str(e)}")
